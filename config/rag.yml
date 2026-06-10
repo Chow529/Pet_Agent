@@ -1,0 +1,6 @@
+chatmodel_name : deepseek-v4-pro
+embeddingmodel_name : text-embedding-v1
+
+base_url : https://dashscope.aliyuncs.com/compatible-mode/v1
+mode_key : sk-209e03a196a24452afc6b13b326e42b4
+

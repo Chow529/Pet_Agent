@@ -1,0 +1,10 @@
+collection_name : chowdb
+knowledge_dir : knowledge
+md5_txt_dir : knowledge/md5.txt
+knowledge_doc : doc
+
+chunk_size : 200
+chunk_overlap : 20
+separators : ["\n\n","\n","\t",".","!","?",""]
+k : 2
+allow_type : [".pdf",".txt"]
