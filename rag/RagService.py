@@ -26,7 +26,7 @@ class RagService (object):
         self.chain = self.prompt | RunnableLambda(print_test) | self.model | StrOutputParser() # type: ignore
         # self.summ_model1 = SummRag(prompt_config['report_prompt'])
         self.summ_model2 = SummRag(prompt_config['report_prompt_1'])
-        
+         
 
 
     def rag_summarize(self,query:str,web_content: str = "") ->str:
