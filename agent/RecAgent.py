@@ -13,7 +13,7 @@ class RecAgent:
     def __init__(self) -> None:
         self.agent = create_agent(
             model = chat_model , # type: ignore
-            tools=[rag_summarize,get_weather],
+            tools=[rag_summarize,get_weather,rag_webserch],
             system_prompt=prompt_config['main_prompt'],
             middleware=[monitor_tool,log_befort_mode]
         )
@@ -40,5 +40,7 @@ class RecAgent:
 if __name__ == "__main__" :
     agent = RecAgent()
     # agent.exe_stream("2026年6月15日,我想带狗狗在成都玩,帮我规划以下行程.") 
-    for chunk in agent.exe_stream("2026年6月15日,我想带狗狗在成都玩,帮我规划以下行程.") :
+    # input = "2026年6月15日到6月17日三天,期间我想带狗狗在成都玩,帮我规划以下行程."
+    input = "狗狗吃了东西呕吐,我该怎么急救?"
+    for chunk in agent.exe_stream(input) :
         print(chunk,end="",flush= True)

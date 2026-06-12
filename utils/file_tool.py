@@ -1,6 +1,5 @@
 import os
 import hashlib
-
 import sys
 from pathlib import Path
 try:
@@ -14,8 +13,7 @@ except ImportError:
 from datetime import datetime
 from langchain_core.documents import Document 
 from pypdf import PdfReader
-import serpapi
-import requests
+
 
 """给定文件名称,自动读取文件并将里面的文字翻译成md5格式,md5本质就是对文件的二进制进行哈希算法不需要拿到里面的内容"""
 def get_file_md5_hex(filepath : str) -> str:
@@ -167,105 +165,6 @@ def load_txt(dir :str) -> list[Document]:
     
     return documents
 
-
-# @tool(description="从网上检索资料,入参是由逗号分割的关键词字符串")
-def rag_webserch(querys:str) ->str:
-    """
-    根据关键词搜索网络资料
-    
-    Args:
-        querys: 逗号分割的关键词字符串，例如 "狗狗呕吐,狗狗腹泻,宠物医疗"
-    
-    Returns:
-        搜索结果字符串
-    """
-    keywords = [kw.strip() for kw in querys.split(',') if kw.strip()]
-    
-    if not keywords:
-        return "未提供有效的搜索关键词"
-    
-    search_query = " ".join(keywords)
-    
-    # 你的 API Key
-    api_key = "cdc835e69e3f05ca0bbc68e05cfa36573a919313570ed74190d78aabcbb8f4af"
-    
-    try:
-        # 创建客户端
-        client = serpapi.Client(api_key=api_key)
-        
-        # 执行搜索
-        results = client.search({
-            "engine": "google",
-            "q": search_query,
-            "hl": "zh-cn",      # 中文
-            "gl": "cn",         # 中国地区
-            "num": 5            # 返回5条结果
-        })
-        
-        # 提取有机搜索结果
-        organic_results = results.get("organic_results", [])
-        
-        if not organic_results:
-            return f"未找到关于「{search_query}」的相关信息"
-        
-        # 格式化结果
-        formatted = f"关于「{search_query}」的搜索结果：\n\n"
-        for i, item in enumerate(organic_results[:2], 1):
-            
-            link = item.get("link", "")
-            # print("*"*20,f"link  {link}","*"*20)
-            if link:
-                formatted += f"{i}. {fetch_with_jina(link)}\n"
-            formatted += "\n"
-        
-        return formatted
-        
-    except Exception as e:
-        return f"搜索失败：{str(e)}"
-    
-def fetch_with_jina(url: str,max_chars :int = 2000) -> str:
-    """使用 Jina Reader 获取网页内容"""
-    try:
-        reader_url = f"https://r.jina.ai/{url}"
-        response = requests.get(reader_url, timeout=15)
-        
-        if response.status_code != 200:
-            logger.error(f"Jina Reader 返回错误: {response.status_code}")
-            return ""
-        
-        content = response.text
-        
-        # 提取 Markdown 正文（跳过 YAML 头）
-        # Jina Reader 返回格式：YAML 头 + 两个换行 + Markdown 内容
-        if '---\n' in content:
-            parts = content.split('---\n', 2)
-            if len(parts) >= 3:
-                # 取第三部分（Markdown 内容）
-                md_content = parts[2]
-            else:
-                md_content = content
-        else:
-            md_content = content
-        
-        # 清理链接格式 [text](url) -> text
-        import re
-        clean_text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', md_content)
-        
-        # 移除标题标记
-        clean_text = re.sub(r'^#{1,6}\s+', '', clean_text, flags=re.MULTILINE)
-        
-        # 移除列表标记
-        clean_text = re.sub(r'^[\s]*[•\-*]\s+', '', clean_text, flags=re.MULTILINE)
-        
-        # 限制长度
-        if len(clean_text) > max_chars:
-            clean_text = clean_text[:max_chars] + "..."
-        
-        return clean_text.strip()
-        
-    except Exception as e:
-        logger.error(f"Jina Reader 获取失败: {e}")
-        return ""
 
 if __name__ == "__main__" :
     list = load_txt("doc/宠物急诊指南.txt")

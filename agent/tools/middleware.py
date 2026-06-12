@@ -34,7 +34,7 @@ def log_befort_mode(
     """
     log_befort_mode 的 Docstring
     """
-    logger.info(f"准备调用模型,带有{len(state['messages'])}条消息询问模型")
+    logger.info(f"准备调用模型{state},带有{len(state['messages'])}条消息询问模型")
     return None
 
 

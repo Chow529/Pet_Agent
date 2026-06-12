@@ -29,28 +29,34 @@ class RagService (object):
         
 
 
-    def rag_summarize(self,query:str,use_web_search: bool = True) ->str:
+    def rag_summarize(self,query:str,web_content: str = "") ->str:
         content_doc = self.retriver.invoke(query)
 
         
-        key_word = self.summ_model1.get_key_words(query)
+        # key_word = self.summ_model1.get_key_words(query)
 
         fulldoc = ""
         for i, doc in enumerate(content_doc):
             fulldoc += f"参考资料{i+1}:\n{doc.page_content}\n\n"
 
-        web_content = ""
-        if use_web_search:
-            try:
-                from agent.tools.agent_tools import rag_webserch
-                # 将 query 转换为关键词格式
-                # print("*"*20,key_word,"*"*20)
-                web_result = rag_webserch(key_word)
-                web_content = f"\n【网络搜索结果】\n{web_result}"
-            except Exception as e:
-                web_content = "无查询结果"
+        # web_content = ""
+        # if use_web_search:
+        #     try:
+        #         from agent.tools.agent_tools import rag_webserch
+        #         # 将 query 转换为关键词格式
+        #         # print("*"*20,key_word,"*"*20)
+        #         web_result = rag_webserch(key_word)
+        #         web_content = f"\n【网络搜索结果】\n{web_result}"
+        #     except Exception as e:
+        #         web_content = "无查询结果"
+        #     resp = self.summ_model2.get_key_words(web_content)
+            # print("*"*20,resp,"*"*20)
+
+        resp = ""
+        if web_content and web_content != "":
             resp = self.summ_model2.get_key_words(web_content)
-            print("*"*20,resp,"*"*20)
+        else :
+            web_content = "无网络参考资料"
 
         return self.chain.invoke(
             {
