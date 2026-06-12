@@ -18,8 +18,11 @@ class RecAgent:
             middleware=[monitor_tool,log_befort_mode]
         )
 
-    def exe_stream(self,query:str)  :
-        inputs = {"messages": [{"role": "user", "content": query}]}
+    def exe_stream(self,query:str,history: list = None)  :
+        messages = history or []
+        messages.append({"role": "user", "content": query})
+    
+        inputs = {"messages": messages}
         previous_content = ""
         
         for chunk in self.agent.stream(input=inputs, stream_mode="updates"): # type: ignore
