@@ -13,7 +13,7 @@ from .file_tool import (
     load_txt,
     check_md5,
     save_md5,
-    rag_webserch
+
 )
 
 from .logging_tool import logger
@@ -34,7 +34,7 @@ __all__ = [
     "load_txt",
     "check_md5",
     "save_md5",
-    "rag_webserch",
+
 
     "logger",
 
