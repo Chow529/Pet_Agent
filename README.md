@@ -118,8 +118,8 @@ class RecAgent:
 
 | 函数 | 作用 |
 |------|------|
-| `fetch_with_jina(url, max_chars=2000)` | 用 Jina Reader API 抓取网页正文，带超时和错误处理 |
-| `clean_jina_content(content)` | 清洗 Jina 返回内容：去除 YAML 头、Markdown 链接标记等 |
+| `fetch_with_jina(url, max_chars=2000)` | **已重写：** requests + lxml 直连抓取网页正文，移除 Jina Reader 依赖 |
+| `clean_jina_content(content)` | 兼容性保留，直接返回原始内容 |
 
 ---
 
@@ -265,9 +265,8 @@ class RecAgent:
 │  ┌── rag_webserch(querys) ────────────────────────────────────────┐  │
 │  │  ① 按逗号拆分关键词                                             │  │
 │  │  ② SerpAPI (Google) 搜索 → 取前 5 条结果                        │  │
-│  │  ③ Jina Reader → 抓取前 2 条链接正文（fetch_with_jina）                │  │
-│  │  ④ clean_jina_content() → 清洗内容                                │  │
-│  │  ⑤ 返回格式化文本                                                  │  │
+│  │  ③ requests + lxml → 直连抓取前 2 条链接正文（取代原来的 Jina Reader）│  │
+│  │  ④ 提取正文内容 → 返回格式化文本                                  │  │
 │  └─────────────────────────────────────────────────────────────────┘  │
 │                                                                      │
 └──────────────────────────┬───────────────────────────────────────────┘
@@ -287,10 +286,27 @@ class RecAgent:
 3. **RAG 查本地知识库** → Agent 调用 `rag_summarize(query)`：
    - Chroma 向量库检索相关文档 → LLM 结合文档生成回答
 4. **语义不匹配时** → Agent 调用 `rag_webserch(querys)`：
-   - SerpAPI 搜索 → Jina Reader 获取网页 → 摘要后返回给 Agent
+   - SerpAPI 搜索 → requests + lxml 直连抓取网页 → 提取正文后返回给 Agent
 5. **Agent 综合总结** → 将工具返回结果整合为自然语言回答
 6. **流式输出** → 逐 token 显示在 Streamlit 界面
 7. **持久化** → `save_message()` 写入 `history/sessions.json`
+
+---
+
+## 环境变量配置
+
+项目使用 `.env` 文件管理 API Key（**不再硬编码在代码中**）：
+
+| 变量名 | 用途 | 获取地址 |
+|--------|------|----------|
+| `SERPAPI_API_KEY` | Google 搜索（Web 搜索工具） | https://serpapi.com/ |
+
+将 `.env.example` 复制为 `.env` 并填入你的密钥：
+
+```bash
+cp .env.example .env
+# 然后编辑 .env 填入实际 API Key
+```
 
 ---
 
@@ -305,10 +321,12 @@ pip install -r requirements.txt
 #    - base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
 #    - api_key: 你的阿里云 DashScope API Key
 
-# 3. 加载本地知识库（首次运行需要）
+# 3. 配置环境变量（复制并编辑 .env 文件）
+
+# 4. 加载本地知识库（首次运行需要）
 #    python -c "from rag.ChromaService import chroma_ini; chroma_ini.load_document()"
 
-# 4. 启动 Streamlit
+# 5. 启动 Streamlit
 streamlit run main.py
 ```
 
@@ -328,5 +346,6 @@ streamlit run main.py
 
 ## 待改进 / 已知问题
 
-- [ ] Web 搜索（`rag_webserch`）超时问题需要优化
-- [ ] API Key 硬编码在代码和配置文件中，建议使用环境变量
+- [x] Web 搜索（`rag_webserch`）超时问题 — ✅ 已修复，移除 Jina Reader，改为直连 requests + lxml
+- [x] API Key 硬编码在代码和配置文件中 — ✅ 已移除，改为 `.env` 环境变量
+- [ ] Streamlit 流式输出在某些场景下会卡顿

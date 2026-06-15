@@ -13,7 +13,7 @@ sys.path.insert(0, str(project_root))
 
 from rag.RagService import rag
 from utils.logging_tool import logger
-import re
+import os
 import serpapi
 import requests
 
@@ -155,9 +155,11 @@ def rag_webserch(querys:str) ->str:
         return "未提供有效的搜索关键词"
     
     search_query = " ".join(keywords)
-    
-    # 你的 API Key
-    api_key = "cdc835e69e3f05ca0bbc68e05cfa36573a919313570ed74190d78aabcbb8f4af"
+
+    # 从环境变量读取 SerpAPI Key
+    api_key = "cdc835e69e3f05ca0bbc68e05cfa36573a919313570ed74190d78aabcbb8f4af" #os.getenv("SERPAPI_API_KEY")
+    if not api_key:
+        return "未配置 SERPAPI_API_KEY 环境变量，请在 .env 文件中设置"
     
     try:
         # 创建客户端
@@ -180,7 +182,7 @@ def rag_webserch(querys:str) ->str:
         
         # 格式化结果
         formatted = f"关于「{search_query}」的搜索结果：\n\n"
-        for i, item in enumerate(organic_results[:2], 1):
+        for i, item in enumerate(organic_results, 1):
             
             link = item.get("link", "")
             print("*"*20,f"link:  {link}","*"*20)
@@ -194,99 +196,98 @@ def rag_webserch(querys:str) ->str:
         return f"搜索失败：{str(e)}"
     
 def fetch_with_jina(url: str, max_chars: int = 2000) -> str:
-    """使用 Jina Reader 获取网页内容（带完整错误处理）"""
+    """增强版网页抓取，模拟真实浏览器"""
     
-    # 验证 URL
     if not url or not url.startswith(('http://', 'https://')):
         url = 'https://' + url if url else ''
         if not url:
             return ""
     
-    # 获取 API 密钥
-    jina_api_key = "jina_67de777337ed4867bc5a0dd2af4b59936uRJ_KsY0nPpTx-gIpwNBlahLfFA"
-    
-    if not jina_api_key:
-        error_msg = (
-            "未配置 Jina API 密钥。\n"
-            "请按以下步骤配置：\n"
-            "1. 访问 https://jina.ai/ 注册账号\n"
-            "2. 在 Dashboard 创建 API Key\n"
-            "3. 在项目根目录创建 .env 文件\n"
-            "4. 添加 JINA_API_KEY=your_key_here"
-        )
-        logger.error(error_msg)
-        return ""
-    
     try:
-        reader_url = f"https://r.jina.ai/{url}"
-        
+        # 更完整的浏览器请求头
         headers = {
-            "Authorization": f"Bearer {jina_api_key}",
-            "Accept": "text/plain",
-            "X-Timeout": "30"  # 设置 Jina 服务端超时
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Referer": "https://www.google.com/",
+            "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "cross-site",
+            "Connection": "keep-alive",
         }
         
-        response = requests.get(reader_url, headers=headers, timeout=15)
+        # 使用会话保持连接
+        session = requests.Session()
+        session.headers.update(headers)
         
-        # 处理各种状态码
-        if response.status_code == 200:
-            content = response.text
-            
-        elif response.status_code == 401:
-            logger.error("Jina API 密钥无效，请检查环境变量 JINA_API_KEY")
-            return ""
-            
-        elif response.status_code == 402:
-            logger.error("Jina API 配额已用完")
-            return ""
-            
-        elif response.status_code == 429:
-            logger.error("请求过于频繁，请稍后再试")
-            return ""
-            
+        response = session.get(url, timeout=15, allow_redirects=True)
+        response.raise_for_status()
+        
+        # 处理压缩内容
+        if response.encoding is None:
+            response.encoding = response.apparent_encoding
+        
+        # 使用 lxml 解析 HTML
+        from lxml import html
+        doc = html.fromstring(response.content)
+        
+        # 移除无用元素
+        for tag in ['script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript', 'iframe']:
+            for element in doc.xpath(f'//{tag}'):
+                parent = element.getparent()
+                if parent is not None:
+                    parent.remove(element)
+        
+        # 优先提取 article / main 区域的内容
+        body = doc.xpath('//article | //main | //div[@class="content"] | //div[@class="post-content"] | //body')
+        if body:
+            text = body[0].text_content()
         else:
-            logger.error(f"Jina Reader 返回错误: {response.status_code}")
-            return ""
+            text = doc.text_content()
         
-        # 清理内容
-        clean_text = clean_jina_content(content)
+        # 清理文本
+        lines = []
+        for line in text.split('\n'):
+            line = line.strip()
+            if len(line) > 1 and not line.startswith(('{', '}', '【', '】')):
+                # 过滤掉明显的JSON或模板代码
+                lines.append(line)
+        
+        clean_text = '\n'.join(lines)
+        
+        # 去除过长的空白行
+        import re
+        clean_text = re.sub(r'\n\s*\n', '\n\n', clean_text)
         
         # 限制长度
         if len(clean_text) > max_chars:
             clean_text = clean_text[:max_chars] + "..."
         
-        print("|"*20,clean_text,"|"*20)
         return clean_text.strip()
         
-    except requests.Timeout:
-        logger.error("Jina Reader 请求超时")
-        return ""
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            logger.warning(f"网站拒绝访问 [{url}]: 可能需要添加Cookie")
+            return f"[该网站需要验证，无法获取内容: {url}]"
+        elif e.response.status_code == 429:
+            logger.warning(f"请求频率过高 [{url}]")
+            return f"[请求过于频繁，请稍后再试: {url}]"
+        else:
+            logger.error(f"HTTP错误 [{url}]: {e}")
+            return ""
     except Exception as e:
-        logger.error(f"Jina Reader 获取失败: {e}")
+        logger.error(f"网页获取失败 [{url}]: {e}")
         return ""
 
 def clean_jina_content(content: str) -> str:
-    """清理 Jina Reader 返回的内容"""
-    # 跳过 YAML 头
-    if '---\n' in content:
-        parts = content.split('---\n', 2)
-        if len(parts) >= 3:
-            content = parts[2]
-    
-    # 清理链接 [text](url) -> text
-    content = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', content)
-    
-    # 移除标题标记
-    content = re.sub(r'^#{1,6}\s+', '', content, flags=re.MULTILINE)
-    
-    # 移除列表标记
-    content = re.sub(r'^[\s]*[•\-*]\s+', '', content, flags=re.MULTILINE)
-    
-    # 移除多余空行
-    content = re.sub(r'\n\s*\n', '\n\n', content)
-    print("-"*20,content,"-"*20)
-    return content.strip() 
+    """清理网页原始内容（兼容旧调用，目前直接返回原始内容）"""
+    return content.strip()
 
 
-# if __name__ == "__main__" :
-#     print(rag_webserch("宠物,医疗,呕吐"))
+
+if __name__ == "__main__" :
+    print(rag_webserch("宠物,医疗,呕吐"))
