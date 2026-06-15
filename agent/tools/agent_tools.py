@@ -157,7 +157,7 @@ def rag_webserch(querys:str) ->str:
     search_query = " ".join(keywords)
 
     # 从环境变量读取 SerpAPI Key
-    api_key = "cdc835e69e3f05ca0bbc68e05cfa36573a919313570ed74190d78aabcbb8f4af" #os.getenv("SERPAPI_API_KEY")
+    api_key = os.getenv("SERPAPI_API_KEY")
     if not api_key:
         return "未配置 SERPAPI_API_KEY 环境变量，请在 .env 文件中设置"
     
