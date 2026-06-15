@@ -167,5 +167,9 @@ def load_txt(dir :str) -> list[Document]:
 
 
 if __name__ == "__main__" :
-    list = load_txt("doc/宠物急诊指南.txt")
-    print(list[0].page_content)
+    # list = load_txt("doc/宠物急诊指南.txt")
+    list = load_pdf("C:/Users/Shuang Chow/xwechat_files/wxid_sgy61pjmrttd22_156e/msg/file/2026-06/周爽-数据治理-17308107874(1).pdf")
+    # print(list[0].page_content)
+    for l in list :
+        print(l.page_content)
+    # print(list)
