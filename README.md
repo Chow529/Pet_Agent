@@ -1,10 +1,190 @@
-# 宠物医疗助手 AI 智能体 (Agent for Dog)
+# 🐕 宠物医疗助手 AI 智能体 (Agent for Dog)
 
-基于 **LangGraph** + **DeepSeek-V4-Pro** 构建的宠物医疗问答智能体，内嵌 **RAG（检索增强生成）** 与 **Web 搜索** 能力，通过 **Streamlit** 提供多会话前端界面。
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-0.2.0-ff69b4)](https://langchain-ai.github.io/langgraph/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.33.0-ff4b4b)](https://streamlit.io/)
+
+> 基于 **LangGraph** + **DeepSeek-V4-Pro** 构建的宠物医疗问答智能体，内嵌 **RAG（检索增强生成）** 与 **Web 搜索** 能力，通过 **Streamlit** 提供多会话前端界面。
 
 ---
 
-## 目录结构
+## ✨ 核心特性
+
+- **🧠 智能对话**：基于 LangGraph 的 ReAct（Reasoning + Acting）循环，自主思考并调用工具
+- **📚 本地知识库**：基于 Chroma 向量数据库的 RAG 检索，支持 PDF/TXT 文档上传与去重
+- **🌐 联网搜索**：集成 SerpAPI（Google）搜索，直连抓取网页正文（requests + lxml）
+- **🌦️ 天气查询**：通过 Open-Meteo API 获取历史与未来天气预报
+- **💬 多会话管理**：Streamlit 前端支持多会话切换、持久化与历史恢复
+- **🚀 流式输出**：实时 token 流式输出，提升用户体验
+- **🔧 模块化设计**：工厂模式管理模型、配置驱动、中间件监控工具调用
+
+---
+
+## 🏗️ 技术架构
+
+### 核心组件
+
+| 组件 | 技术栈 | 说明 |
+|------|--------|------|
+| **Agent 引擎** | LangGraph + DeepSeek-V4-Pro | ReAct 循环，自主调用工具 |
+| **向量数据库** | Chroma + OpenAIEmbeddings | 文档检索与相似度匹配 |
+| **前端界面** | Streamlit | 多会话聊天 Web UI |
+| **模型服务** | DashScope（阿里云） | LLM 与 Embedding 模型 |
+| **Web 搜索** | SerpAPI + requests/lxml | 联网搜索与内容提取 |
+| **天气服务** | Open-Meteo API | 地理编码与天气预报 |
+
+### 系统架构图
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                        用户 (Streamlit UI)                           │
+│               main.py → render_chat() → 输入问题                      │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                    RecAgent.exe_stream(query, history)               │
+│                                                                      │
+│  LangGraph ReAct Loop:                                               │
+│  ┌────────────────────────────────────────────┐                     │
+│  │  ① 模型接收：[系统提示词 + 历史 + 用户输入]   │                     │
+│  │  ② 模型决定：思考 → 输出回答 或 调用工具      │                     │
+│  │  ③ 若调用工具 → 执行 → 结果回传 → 回到 ②     │                     │
+│  └────────────────────────────────────────────┘                     │
+│                                                                      │
+│  tools 注册列表：                                                     │
+│   ┌─────────────────────────────┐                                   │
+│   │ rag_summarize(query)        │  ← 优先查本地知识库                │
+│   │ get_weather(loc, date)      │  ← 查天气                         │
+│   │ rag_webserch(querys)        │  ← 联网搜索                       │
+│   └─────────────────────────────┘                                   │
+│                                                                      │
+│  middleware 中间件：                                                  │
+│   ├── monitor_tool    → 记录每次工具调用的入参、结果、异常              │
+│   └── log_befort_mode → 记录模型调用前的消息数量                       │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │
+                           ▼
+                    工具执行分支（由 Agent 自主选择调用）
+```
+
+---
+
+## 🚀 快速开始
+
+### 环境要求
+
+- Python 3.11+
+- 阿里云 DashScope API Key（用于 DeepSeek-V4-Pro）
+- SerpAPI Key（用于 Google 搜索）
+- 可选：本地宠物医疗文档（PDF/TXT）
+
+### 安装步骤
+
+1. **克隆仓库**
+   ```bash
+   git clone https://github.com/yourusername/agent_for_dog.git
+   cd agent_for_dog
+   ```
+
+2. **创建虚拟环境并安装依赖**
+   ```bash
+   python -m venv .venv
+   # Windows
+   .venv\Scripts\activate
+   # Linux/Mac
+   source .venv/bin/activate
+   
+   pip install langgraph langchain chromadb streamlit openai python-dotenv requests lxml pypdf
+   ```
+   > 注意：项目暂未提供 `requirements.txt`，请手动安装以上核心依赖。
+
+3. **配置 API 密钥**
+   - 复制环境变量模板（若不存在可手动创建）：
+     ```bash
+     cp .env.example .env
+     ```
+   - 编辑 `.env` 文件：
+     ```env
+     # SerpAPI (Google 搜索) — 必填
+     SERPAPI_API_KEY = your_serpapi_key_here
+     ```
+   - 编辑 `config/rag.yml`，填入阿里云 DashScope API Key：
+     ```yaml
+     chatmodel_name: deepseek-v4-pro
+     embeddingmodel_name: text-embedding-v1
+     base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+     mode_key: sk-your-dashscope-api-key-here
+     ```
+
+4. **加载本地知识库（可选）**
+   - 创建 `doc/` 目录并放入宠物医疗相关 PDF/TXT 文档
+   - 执行文档加载：
+     ```bash
+     python -c "from rag.ChromaService import chroma_ini; chroma_ini.load_document()"
+     ```
+   - 支持 MD5 去重，重复文档不会被重复加载
+
+5. **启动应用**
+   ```bash
+   streamlit run main.py
+   ```
+   - 访问 `http://localhost:8501`
+   - 在左侧边栏创建新会话，开始提问
+
+---
+
+## 📖 使用指南
+
+### 基本操作
+
+1. **新建会话**：点击左侧边栏“新建会话”按钮
+2. **切换会话**：在会话列表中选择不同会话
+3. **删除会话**：点击会话旁边的删除图标
+4. **输入问题**：在底部输入框提问，支持以下类型：
+   - 🏥 宠物医疗咨询：“狗狗呕吐怎么办？”
+   - 🌤️ 天气查询：“北京明天天气如何？”
+   - 🔍 联网搜索：“最新的宠物疫苗技术有哪些？”
+5. **流式输出**：AI 回答会逐词显示，提升交互体验
+
+### 会话持久化
+
+- 所有会话历史自动保存到 `history/sessions.json`
+- 页面刷新或重启后会话完全恢复
+- 每个会话包含唯一 ID、标题、创建时间与消息列表
+
+---
+
+## ⚙️ 配置说明
+
+### 配置文件概览
+
+| 配置文件 | 作用 | 关键字段 |
+|----------|------|----------|
+| `config/rag.yml` | LLM 模型与 Embedding 模型配置 | `chatmodel_name`, `embeddingmodel_name`, `base_url`, `mode_key` |
+| `config/chroma.yml` | 向量数据库参数 | `collection_name`, `chunk_size`, `chunk_overlap`, `k` |
+| `config/prompt.yml` | 系统提示词与场景 Prompt | `main_prompt`, `rag_summarize_prompt`, `report_prompt_1` |
+| `.env` | 环境变量（API Key） | `SERPAPI_API_KEY` |
+
+### 向量数据库配置（`chroma.yml`）
+
+```yaml
+collection_name: chowdb            # 集合名称
+chunk_size: 200                    # 文本切分大小
+chunk_overlap: 20                  # 切分重叠
+k: 2                               # 检索返回最相似文档数
+allow_type: [".pdf", ".txt"]       # 支持文件类型
+```
+
+### 系统提示词（`prompt.yml`）
+
+- `main_prompt`：定义 Agent 角色、思考流程、工具使用约束
+- `rag_summarize_prompt`：RAG 总结模板
+- `report_prompt_1`：网页内容摘要模板
+
+---
+
+## 📁 项目结构
 
 ```
 agent_for_dog/
@@ -40,312 +220,125 @@ agent_for_dog/
 └── README.md                # 本文件
 ```
 
----
+### 核心模块详解
 
-## 各模块详解
+#### 1. `main.py` — Streamlit UI 入口
+- 多会话聊天界面
+- `init_session_state()`：初始化会话状态与单例
+- `render_sidebar()`：渲染侧边栏（会话管理）
+- `render_chat()`：渲染聊天主体与流式输出
+- `save_message()`：消息持久化到 JSON
 
-### 1. `main.py` — Streamlit UI 入口
+#### 2. `session_manager.py` — 多会话管理
+- `Session`：会话数据类（ID、标题、消息列表）
+- `SessionManager`：会话 CRUD、持久化加载、历史格式转换
 
-基于 **Streamlit** 构建的多会话聊天前端。
+#### 3. `agent/RecAgent.py` — 核心 Agent 类
+- 封装 LangGraph `create_agent()`
+- `exe_stream()`：流式执行，逐 token 输出
+- 注册三大工具 + 两个中间件
 
-**关键方法：**
+#### 4. `agent/tools/agent_tools.py` — 工具集
+- `@tool` 装饰器注册的三大工具：
+  1. `rag_summarize(query)`：RAG 检索本地知识库
+  2. `get_weather(location, date)`：天气查询（Open-Meteo）
+  3. `rag_webserch(querys)`：Web 搜索（SerpAPI + requests/lxml）
 
-| 方法 | 作用 |
-|------|------|
-| `init_session_state()` | 初始化 `st.session_state`，创建 `SessionManager`、`RecAgent` 单例 |
-| `render_sidebar()` | 渲染左侧边栏：新建会话、清除、切换/删除会话列表、统计信息 |
-| `render_chat()` | 渲染聊天主体：标题、历史消息、输入框、**流式输出** |
-| `save_message(role, content)` | 保存消息到当前会话并持久化到 JSON |
-| `load_current_session_messages()` | 从文件加载当前会话的所有消息 |
+#### 5. `rag/ChromaService.py` — 向量数据库服务
+- Chroma 初始化与持久化
+- MD5 去重文档加载
+- `get_retriever()`：返回 top-2 相似文档检索器
 
-**流式输出：** 调用 `agent.exe_stream(prompt, history[:-1])` 实现逐 token 流式显示。
-
----
-
-### 2. `session_manager.py` — 多会话管理
-
-将会话持久化到 `history/sessions.json`，支持页面刷新后恢复历史。
-
-**关键类与方法：**
-
-| 类 | 方法 | 作用 |
-|----|------|------|
-| `Session` | `__init__` | 初始化：session_id(UUID)、title、created_at、messages 列表 |
-| `Session` | `add_message(role, content)` | 添加一条消息（含时间戳） |
-| `Session` | `to_dict()` / `from_dict()` | 序列化 / 反序列化 |
-| `SessionManager` | `__init__` | 从 `history/sessions.json` 加载已有会话 |
-| `SessionManager` | `create_session(title)` | 创建新会话，返回 `Session` |
-| `SessionManager` | `switch_session(session_id)` | 切换当前激活的会话 |
-| `SessionManager` | `delete_session(session_id)` | 删除会话，自动切换到下一个 |
-| `SessionManager` | `get_conversation_history(session_id)` | 获取 Agent 兼容格式（role/content 列表）的消息历史 |
-| `SessionManager` | `add_message_to_current(role, content)` | 快捷添加消息到当前会话 |
+#### 6. `rag/RagService.py` — RAG 检索生成链
+- 完整 RAG 流水线：检索 → 增强 → 生成
+- `rag_summarize(query, web_content="")`：结合本地文档与 Web 内容生成回答
 
 ---
 
-### 3. `agent/RecAgent.py` — 核心 Agent 类
-
-封装 **LangGraph** 的 `create_agent()`，是智能体的中枢。
-
-```python
-class RecAgent:
-    def __init__(self):
-        self.agent = create_agent(
-            model=chat_model,                          # 来自 model_factory
-            tools=[rag_summarize, get_weather, rag_webserch],  # 三大工具
-            system_prompt=prompt_config['main_prompt'], # 系统提示词
-            middleware=[monitor_tool, log_befort_mode]  # 中间件
-        )
-
-    def exe_stream(self, query, history=None):
-        """流式执行：用 self.agent.stream(stream_mode="updates") 逐 token 产出内容"""
-```
-
-**核心流程：** 自动进入 **ReAct**（Reasoning + Acting）循环——模型根据当前状态决定思考、调用工具或输出回答。
-
----
-
-### 4. `agent/tools/agent_tools.py` — Agent 工具集
-
-定义注册给 Agent 的三个 LangChain 工具（使用 `@tool` 装饰器）：
-
-| 工具函数 | 签注 | 作用 |
-|----------|------|------|
-| `rag_summarize(query: str) -> str` | 标注 RAG | 调 `RagService.rag_summarize()` → 向量检索 + LLM 总结 |
-| `get_weather(location: str, date: str) -> str` | 标注天气 | Open-Meteo 地理编码 → 获取天气预报/历史 → 格式化输出 |
-| `rag_webserch(querys: str) -> str` | 标注网页搜索 | SerpAPI(Google) 搜索 → Jina Reader 获取前 2 条内容 → 清洗后返回 |
-
-**辅助函数：**
-
-| 函数 | 作用 |
-|------|------|
-| `fetch_with_jina(url, max_chars=2000)` | **已重写：** requests + lxml 直连抓取网页正文，移除 Jina Reader 依赖 |
-| `clean_jina_content(content)` | 兼容性保留，直接返回原始内容 |
-
----
-
-### 5. `agent/tools/middleware.py` — 中间件
-
-| 函数 | 装饰器 | 作用 |
-|------|--------|------|
-| `monitor_tool(request, handler)` | `@wrap_tool_call` | 工具调用前后日志记录：记录工具名、参数、结果、异常 |
-| `log_befort_mode(state, runtime)` | `@before_model` | 模型调用前日志：记录即将发送给模型的消息数量 |
-
----
-
-### 6. `model/model_factory.py` — 模型工厂
-
-采用**工厂模式**统一创建 AI 模型实例。
-
-| 类 | 继承 | 产出 |
-|----|------|------|
-| `BaseModelFactory` | `ABC` | 抽象基类，定义 `model()` 抽象方法 |
-| `ChatModelIni` | `BaseModelFactory` | `ChatOpenAI`（deepseek-v4-pro，DashScope 接口） |
-| `EmbeddingModeIni` | `BaseModelFactory` | `OpenAIEmbeddings`（text-embedding-v1） |
-
-**模块级单例（模块加载时创建一次）：**
-- `chat_model = ChatModelIni().model()` — 主对话模型
-- `embedding_model = EmbeddingModeIni().model()` — 向量嵌入模型
-- `summ_model = ChatModelIni().model()` — 摘要模型（复用 ChatModelIni）
-
----
-
-### 7. `rag/ChromaService.py` — 向量数据库服务
-
-管理 **Chroma** 向量数据库的初始化、文档切分、文档加载（MD5 去重）。
-
-**关键方法：**
-
-| 方法 | 作用 |
-|------|------|
-| `__init__()` | 创建 `knowledge/` 目录、`md5.txt`；初始化 Chroma 集合 + `RecursiveCharacterTextSplitter` |
-| `get_retriever()` | 返回检索器，`search_kwargs={'k': 2}`，取最相似的 2 个文档块 |
-| `load_document()` | 扫描 `doc/` 目录 → MD5 去重 → 加载 TXT/PDF → 切分 → 写入 Chroma → 记录 MD5 |
-
-**配置（来自 `config/chroma.yml`）：**
-- `chunk_size`: 200, `chunk_overlap`: 20
-- `separators`: `["\n\n", "\n", "\t", ".", "!", "?", ""]`
-- `k`: 2
-
----
-
-### 8. `rag/RagService.py` — RAG 检索生成链
-
-完整的 RAG 流水线：检索 → 增强 → 生成。
-
-**关键方法：**
-
-| 方法 | 作用 |
-|------|------|
-| `__init__()` | 获取 `chroma_ini.get_retriever()`；构建 LangChain chain: `PromptTemplate \| print_test \| chat_model \| StrOutputParser` |
-| `rag_summarize(query, web_content="")` | 从 Chroma 检索相关文档 → 拼接 → （若有 Web 内容则用 `SummRag` 摘要） → 送入 LLM 链 → 返回最终回答 |
-
----
-
-### 9. `rag/SummRag.py` — 网页内容摘要
-
-轻量摘要封装，用于对 Web 搜索获取的内容做二次总结。
-
-**关键方法：**
-
-| 方法 | 作用 |
-|------|------|
-| `__init__(prompt)` | 构建 LangChain chain: `PromptTemplate \| print_test \| summ_model \| StrOutputParser` |
-| `get_key_words(quer)` | 执行摘要链，传入 `{"input": quer}`，返回 LLM 输出（虽名 `get_key_words`，但功能是完整摘要） |
-
----
-
-### 10. 工具模块 (`utils/`)
-
-| 模块 | 关键函数 | 作用 |
-|------|----------|------|
-| `config_tool.py` | `load_rag_config()` / `load_chroma_config()` / `load_prompt_config()` 等 | 加载 `config/` 下各 YAML 配置文件 |
-| `file_tool.py` | `get_file_md5_hex()` / `check_md5()` / `save_md5()` | 文件 MD5 计算、去重检查、保存 |
-| `file_tool.py` | `load_pdf()` / `load_txt()` | 加载文档，返回 LangChain `Document` 对象（含丰富元数据） |
-| `file_tool.py` | `get_file_list(dir)` | 按扩展名过滤获取文件列表 |
-| `logging_tool.py` | `get_logger()` | 双输出日志：控制台（INFO）+ 文件（DEBUG，每日轮转） |
-| `path_tool.py` | `get_projiect_root()` / `get_abs_path()` | 项目根路径检测与绝对路径拼接 |
-
----
-
-## 完整数据流
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                        用户 (Streamlit UI)                           │
-│               main.py → render_chat() → 输入问题                      │
-└──────────────────────────┬───────────────────────────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                    RecAgent.exe_stream(query, history)               │
-│                                                                      │
-│  LangGraph ReAct Loop:                                               │
-│  ┌────────────────────────────────────────────┐                     │
-│  │  ① 模型接收：[系统提示词 + 历史 + 用户输入]   │                     │
-│  │  ② 模型决定：思考 → 输出回答 或 调用工具      │                     │
-│  │  ③ 若调用工具 → 执行 → 结果回传 → 回到 ②     │                     │
-│  └────────────────────────────────────────────┘                     │
-│                                                                      │
-│  tools 注册列表：                                                     │
-│   ┌─────────────────────────────┐                                   │
-│   │ rag_summarize(query)        │  ← 优先查本地知识库                │
-│   │ get_weather(loc, date)      │  ← 查天气                         │
-│   │ rag_webserch(querys)        │  ← 联网搜索                       │
-│   └─────────────────────────────┘                                   │
-│                                                                      │
-│  middleware 中间件：                                                  │
-│   ├── monitor_tool    → 记录每次工具调用的入参、结果、异常              │
-│   └── log_befort_mode → 记录模型调用前的消息数量                       │
-└──────────────────────────┬───────────────────────────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  工具执行分支（由 Agent 自主选择调用）                                    │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌── rag_summarize(query) ────────────────────────────────────────┐  │
-│  │  ① RagService.rag_summarize(query)                             │  │
-│  │  ② chroma_ini.get_retriever().invoke(query)                    │  │
-│  │     → 从 Chroma 向量库检索 top-2 相关文档块                      │  │
-│  │  ③ 若有 web_content：                                          │  │
-│  │     → SummRag.get_key_words(web_content) → 摘要                 │  │
-│  │  ④ 送入 LangChain Chain：                                       │  │
-│  │     PromptTemplate | chat_model | StrOutputParser               │  │
-│  │     → 结合 query + doc + web 生成最终回答                        │  │
-│  │  ⑤ 返回答案字符串                                                │  │
-│  └─────────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-│  ┌── get_weather(location, date) ─────────────────────────────────┐  │
-│  │  ① Open-Meteo Geocoding API → 获取城市坐标 (lat, lon)           │  │
-│  │  ② 判断日期：未来 → Open-Meteo Forecast API                    │  │
-│  │              过去 → Open-Meteo Archive API                     │  │
-│  │  ③ 解析温度 + WMO 天气码 → 格式化输出                           │  │
-│  └─────────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-│  ┌── rag_webserch(querys) ────────────────────────────────────────┐  │
-│  │  ① 按逗号拆分关键词                                             │  │
-│  │  ② SerpAPI (Google) 搜索 → 取前 5 条结果                        │  │
-│  │  ③ requests + lxml → 直连抓取前 2 条链接正文（取代原来的 Jina Reader）│  │
-│  │  ④ 提取正文内容 → 返回格式化文本                                  │  │
-│  └─────────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-└──────────────────────────┬───────────────────────────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                    最终回答流式输出到前端                              │
-│              render_chat() → st.chat_message() → 展示给用户            │
-│              同时 save_message() → 持久化到会话 JSON                    │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-### 流程文字描述
+## 🔄 完整数据流
 
 1. **用户输入** → Streamlit 前端获取问题
 2. **Agent 启动** → `RecAgent.exe_stream(query, history)` → LangGraph ReAct 循环启动
-3. **RAG 查本地知识库** → Agent 调用 `rag_summarize(query)`：
-   - Chroma 向量库检索相关文档 → LLM 结合文档生成回答
-4. **语义不匹配时** → Agent 调用 `rag_webserch(querys)`：
-   - SerpAPI 搜索 → requests + lxml 直连抓取网页 → 提取正文后返回给 Agent
-5. **Agent 综合总结** → 将工具返回结果整合为自然语言回答
-6. **流式输出** → 逐 token 显示在 Streamlit 界面
-7. **持久化** → `save_message()` 写入 `history/sessions.json`
+3. **工具调用决策** → Agent 根据问题类型自主选择工具：
+   - 🏥 宠物医疗 → `rag_summarize()` → Chroma 检索 → LLM 生成回答
+   - 🌤️ 天气查询 → `get_weather()` → Open-Meteo API → 格式化输出
+   - 🔍 语义不匹配 → `rag_webserch()` → SerpAPI 搜索 → 直连抓取网页 → 提取正文
+4. **结果整合** → Agent 综合工具返回结果，生成自然语言回答
+5. **流式输出** → 逐 token 显示在 Streamlit 界面
+6. **持久化** → `save_message()` 写入 `history/sessions.json`
 
 ---
 
-## 环境变量配置
+## 🛠️ 开发与扩展
 
-项目使用 `.env` 文件管理 API Key（**不再硬编码在代码中**）：
+### 添加新工具
 
-| 变量名 | 用途 | 获取地址 |
-|--------|------|----------|
-| `SERPAPI_API_KEY` | Google 搜索（Web 搜索工具） | https://serpapi.com/ |
+1. 在 `agent/tools/agent_tools.py` 中使用 `@tool` 装饰器定义新函数
+2. 在 `RecAgent.py` 的 `create_agent()` 的 `tools` 列表中添加
+3. 在 `prompt.yml` 的 `main_prompt` 中描述工具用途与约束
 
-将 `.env.example` 复制为 `.env` 并填入你的密钥：
+### 自定义知识库
 
-```bash
-cp .env.example .env
-# 然后编辑 .env 填入实际 API Key
-```
+- 支持 PDF/TXT 文档
+- 放入 `doc/` 目录，执行 `chroma_ini.load_document()`
+- 修改 `config/chroma.yml` 中的 `chunk_size`、`chunk_overlap` 优化检索效果
 
----
+### 日志与监控
 
-## 启动方式
-
-```bash
-# 1. 安装依赖（建议使用虚拟环境）
-pip install -r requirements.txt
-
-# 2. 配置 config/rag.yml 中的 API Key
-#    - model: deepseek-v4-pro
-#    - base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
-#    - api_key: 你的阿里云 DashScope API Key
-
-# 3. 配置环境变量（复制并编辑 .env 文件）
-
-# 4. 加载本地知识库（首次运行需要）
-#    python -c "from rag.ChromaService import chroma_ini; chroma_ini.load_document()"
-
-# 5. 启动 Streamlit
-streamlit run main.py
-```
+- 日志输出：控制台（INFO）+ 文件（DEBUG，每日轮转）
+- 工具调用监控：`monitor_tool` 中间件记录入参、结果、异常
+- 模型调用前日志：`log_befort_mode` 记录消息数量
 
 ---
 
-## 配置说明
+## 📝 待改进 / 已知问题
 
-| 配置文件 | 作用 | 关键字段 |
-|----------|------|----------|
-| `config/rag.yml` | LLM 模型 & Embedding 模型配置 | `chat_model_name`, `embedding_model_name`, `base_url`, `api_key` |
-| `config/chroma.yml` | 向量数据库参数 | `collection_name`, `chunk_size`, `chunk_overlap`, `k` |
-| `config/prompt.yml` | 系统提示词 & RAG/摘要 Prompt | `main_prompt`, `rag_summarize_prompt`, `report_prompt_1` |
-| `config/agent.yml` | Agent 配置（预留） | 空 |
-| `config/public_config.yml` | 公共配置（预留） | 空 |
+- [x] **Web 搜索超时** — ✅ 已修复，移除 Jina Reader，改用 requests + lxml 直连
+- [x] **API Key 硬编码** — ✅ 已迁移到 `.env` 环境变量
+- [ ] **Streamlit 流式输出卡顿** — 某些场景下流式输出可能卡顿，待优化
+- [ ] **doc/ 目录缺失** — 首次运行需手动创建 `doc/` 目录
+- [ ] **缺少 requirements.txt** — 需补充完整依赖清单
+- [ ] **错误处理增强** — 部分 API 调用错误处理可更完善
 
 ---
 
-## 待改进 / 已知问题
+## 🤝 贡献指南
 
-- [x] Web 搜索（`rag_webserch`）超时问题 — ✅ 已修复，移除 Jina Reader，改为直连 requests + lxml
-- [x] API Key 硬编码在代码和配置文件中 — ✅ 已移除，改为 `.env` 环境变量
-- [ ] Streamlit 流式输出在某些场景下会卡顿
+1. Fork 本仓库
+2. 创建功能分支：`git checkout -b feature/your-feature`
+3. 提交更改：`git commit -m 'Add some feature'`
+4. 推送分支：`git push origin feature/your-feature`
+5. 提交 Pull Request
+
+### 开发规范
+- 遵循 PEP 8 代码风格
+- 添加适当的类型注解
+- 更新相关文档与配置文件
+- 确保现有功能不受影响
+
+---
+
+## 📄 许可证
+
+本项目暂未指定许可证，建议添加 MIT 许可证。
+
+---
+
+## 🙏 致谢
+
+- [LangGraph](https://langchain-ai.github.io/langgraph/)：强大的 Agent 框架
+- [DashScope](https://dashscope.aliyuncs.com/)：阿里云模型服务平台
+- [Chroma](https://www.trychroma.com/)：轻量级向量数据库
+- [Streamlit](https://streamlit.io/)：快速构建数据应用
+- [Open-Meteo](https://open-meteo.com/)：免费的天气 API
+- [SerpAPI](https://serpapi.com/)：Google 搜索 API
+
+---
+
+## 📞 支持与反馈
+
+如有问题或建议，请提交 Issue 或通过邮件联系。
+
+---
+
+**Happy coding with your pet! 🐶🐱**
