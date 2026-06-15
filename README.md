@@ -99,23 +99,35 @@
    ```
    > 注意：项目暂未提供 `requirements.txt`，请手动安装以上核心依赖。
 
-3. **配置 API 密钥**
-   - 复制环境变量模板（若不存在可手动创建）：
-     ```bash
-     cp .env.example .env
-     ```
-   - 编辑 `.env` 文件：
-     ```env
-     # SerpAPI (Google 搜索) — 必填
-     SERPAPI_API_KEY = your_serpapi_key_here
-     ```
-   - 编辑 `config/rag.yml`，填入阿里云 DashScope API Key：
-     ```yaml
-     chatmodel_name: deepseek-v4-pro
-     embeddingmodel_name: text-embedding-v1
-     base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
-     mode_key: sk-your-dashscope-api-key-here
-     ```
+3. **配置 API 密钥（系统环境变量）**
+   
+   所有 API 密钥通过**系统环境变量**配置，无需 `.env` 文件。请在操作系统中设置以下环境变量：
+
+   **Windows（PowerShell）：**
+   ```powershell
+   [System.Environment]::SetEnvironmentVariable('SERPAPI_API_KEY', 'your_serpapi_key_here', 'User')
+   [System.Environment]::SetEnvironmentVariable('mode_key', 'sk-your-dashscope-api-key-here', 'User')
+   ```
+
+   **Windows（CMD）：**
+   ```cmd
+   setx SERPAPI_API_KEY "your_serpapi_key_here"
+   setx mode_key "sk-your-dashscope-api-key-here"
+   ```
+
+   **Linux / Mac：**
+   ```bash
+   echo 'export SERPAPI_API_KEY="your_serpapi_key_here"' >> ~/.bashrc
+   echo 'export mode_key="sk-your-dashscope-api-key-here"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+   | 环境变量 | 说明 | 是否必填 |
+   |----------|------|----------|
+   | `SERPAPI_API_KEY` | SerpAPI（Google 搜索）密钥 | 必填 |
+   | `mode_key` | 阿里云 DashScope API Key（DeepSeek-V4-Pro） | 必填 |
+
+   > 注意：项目代码通过 `os.environ` 直接读取系统环境变量，无需编辑任何配置文件。设置完成后**重启终端**使环境变量生效。
 
 4. **加载本地知识库（可选）**
    - 创建 `doc/` 目录并放入宠物医疗相关 PDF/TXT 文档
@@ -161,10 +173,10 @@
 
 | 配置文件 | 作用 | 关键字段 |
 |----------|------|----------|
-| `config/rag.yml` | LLM 模型与 Embedding 模型配置 | `chatmodel_name`, `embeddingmodel_name`, `base_url`, `mode_key` |
+| `config/rag.yml` | LLM 模型与 Embedding 模型配置 | `chatmodel_name`, `embeddingmodel_name`, `base_url` |
 | `config/chroma.yml` | 向量数据库参数 | `collection_name`, `chunk_size`, `chunk_overlap`, `k` |
 | `config/prompt.yml` | 系统提示词与场景 Prompt | `main_prompt`, `rag_summarize_prompt`, `report_prompt_1` |
-| `.env` | 环境变量（API Key） | `SERPAPI_API_KEY` |
+| 系统环境变量 | API Key | `SERPAPI_API_KEY`, `mode_key` |
 
 ### 向量数据库配置（`chroma.yml`）
 
@@ -294,7 +306,7 @@ agent_for_dog/
 ## 📝 待改进 / 已知问题
 
 - [x] **Web 搜索超时** — ✅ 已修复，移除 Jina Reader，改用 requests + lxml 直连
-- [x] **API Key 硬编码** — ✅ 已迁移到 `.env` 环境变量
+- [x] **API Key 硬编码** — ✅ 已迁移到系统环境变量
 - [ ] **Streamlit 流式输出卡顿** — 某些场景下流式输出可能卡顿，待优化
 - [ ] **doc/ 目录缺失** — 首次运行需手动创建 `doc/` 目录
 - [ ] **缺少 requirements.txt** — 需补充完整依赖清单
