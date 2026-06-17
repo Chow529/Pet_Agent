@@ -1,21 +1,25 @@
-# 🐕 宠物医疗助手 AI 智能体 (Agent for Dog)
+# 🐾 宠物医疗助手
 
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![LangGraph](https://img.shields.io/badge/LangGraph-0.2.0-ff69b4)](https://langchain-ai.github.io/langgraph/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.33.0-ff4b4b)](https://streamlit.io/)
+[![LangChain](https://img.shields.io/badge/LangChain-1.3.4-ff69b4)](https://www.langchain.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.58.0-ff4b4b)](https://streamlit.io/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-green)](https://opensource.org/licenses/MIT)
 
-> 基于 **LangGraph** + **DeepSeek-V4-Pro** 构建的宠物医疗问答智能体，内嵌 **RAG（检索增强生成）** 与 **Web 搜索** 能力，通过 **Streamlit** 提供多会话前端界面。
+> 专业的宠物医疗咨询助手，基于 LangChain 技术和 RAG（检索增强生成）系统，为宠物主人提供智能化的医疗咨询服务。
 
 ---
 
 ## ✨ 核心特性
 
 - **🧠 智能对话**：基于 LangGraph 的 ReAct（Reasoning + Acting）循环，自主思考并调用工具
-- **📚 本地知识库**：基于 Chroma 向量数据库的 RAG 检索，支持 PDF/TXT 文档上传与去重
+- **📚 本地知识库**：基于 Chroma 向量数据库的 RAG 检索，支持 PDF/TXT 文档上传与 MD5 去重
 - **🌐 联网搜索**：集成 SerpAPI（Google）搜索，直连抓取网页正文（requests + lxml）
 - **🌦️ 天气查询**：通过 Open-Meteo API 获取历史与未来天气预报
 - **💬 多会话管理**：Streamlit 前端支持多会话切换、持久化与历史恢复
 - **🚀 流式输出**：实时 token 流式输出，提升用户体验
+- **📊 知识库管理**：独立的向量库浏览与知识库管理页面
+- **🐳 Docker 支持**：一键容器化部署，简化运维流程
 - **🔧 模块化设计**：工厂模式管理模型、配置驱动、中间件监控工具调用
 
 ---
@@ -28,7 +32,7 @@
 |------|--------|------|
 | **Agent 引擎** | LangGraph + DeepSeek-V4-Pro | ReAct 循环，自主调用工具 |
 | **向量数据库** | Chroma + OpenAIEmbeddings | 文档检索与相似度匹配 |
-| **前端界面** | Streamlit | 多会话聊天 Web UI |
+| **前端界面** | Streamlit 多页面 | 主界面 + 知识库管理 + 向量库浏览 |
 | **模型服务** | DashScope（阿里云） | LLM 与 Embedding 模型 |
 | **Web 搜索** | SerpAPI + requests/lxml | 联网搜索与内容提取 |
 | **天气服务** | Open-Meteo API | 地理编码与天气预报 |
@@ -38,7 +42,8 @@
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
 │                        用户 (Streamlit UI)                           │
-│               main.py → render_chat() → 输入问题                      │
+│                主界面.py → render_chat() → 输入问题                   │
+│              pages/ → 知识库管理.py → 向量库浏览.py                   │
 └──────────────────────────┬───────────────────────────────────────────┘
                            │
                            ▼
@@ -79,12 +84,36 @@
 - SerpAPI Key（用于 Google 搜索）
 - 可选：本地宠物医疗文档（PDF/TXT）
 
-### 安装步骤
+### 安装方式
+
+#### 方式一：一键启动脚本（推荐）
+
+**Windows：**
+```bash
+# 双击运行 start.bat 或在终端执行
+start.bat
+```
+
+**Linux / Mac：**
+```bash
+# 添加执行权限并运行
+chmod +x start.sh
+./start.sh
+```
+
+启动脚本会自动完成：
+- 检测 Python 环境
+- 创建并激活虚拟环境
+- 安装所有依赖
+- 创建必要的目录结构
+- 启动 Streamlit 应用
+
+#### 方式二：手动安装
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/yourusername/agent_for_dog.git
-   cd agent_for_dog
+   git clone https://github.com/Chow529/pet-medical-assistant.git
+   cd pet-medical-assistant
    ```
 
 2. **创建虚拟环境并安装依赖**
@@ -95,9 +124,8 @@
    # Linux/Mac
    source .venv/bin/activate
    
-   pip install langgraph langchain chromadb streamlit openai python-dotenv requests lxml pypdf
+   pip install -r requirements.txt
    ```
-   > 注意：项目暂未提供 `requirements.txt`，请手动安装以上核心依赖。
 
 3. **配置 API 密钥（系统环境变量）**
    
@@ -127,7 +155,7 @@
    | `SERPAPI_API_KEY` | SerpAPI（Google 搜索）密钥 | 必填 |
    | `mode_key` | 阿里云 DashScope API Key（DeepSeek-V4-Pro） | 必填 |
 
-   > 注意：项目代码通过 `os.environ` 直接读取系统环境变量，无需编辑任何配置文件。设置完成后**重启终端**使环境变量生效。
+   > ⚠️ 注意：设置完成后**重启终端**使环境变量生效。
 
 4. **加载本地知识库（可选）**
    - 创建 `doc/` 目录并放入宠物医疗相关 PDF/TXT 文档
@@ -139,10 +167,37 @@
 
 5. **启动应用**
    ```bash
-   streamlit run main.py
+   streamlit run 主界面.py
    ```
    - 访问 `http://localhost:8501`
    - 在左侧边栏创建新会话，开始提问
+
+#### 方式三：Docker 部署
+
+适合生产环境或需要快速部署的场景。
+
+1. **构建并运行容器**
+   ```bash
+   # 使用 docker-compose（推荐）
+   docker-compose up -d
+   
+   # 或直接构建
+   docker build -t pet-medical-assistant .
+   docker run -d -p 8501:8501 \
+     -e SERPAPI_API_KEY="your_key" \
+     -e mode_key="your_key" \
+     -v ./knowledge:/app/knowledge \
+     -v ./config:/app/config \
+     pet-medical-assistant
+   ```
+
+2. **访问应用**
+   - 打开浏览器访问 `http://localhost:8501`
+
+3. **停止容器**
+   ```bash
+   docker-compose down
+   ```
 
 ---
 
@@ -150,14 +205,35 @@
 
 ### 基本操作
 
-1. **新建会话**：点击左侧边栏“新建会话”按钮
-2. **切换会话**：在会话列表中选择不同会话
-3. **删除会话**：点击会话旁边的删除图标
-4. **输入问题**：在底部输入框提问，支持以下类型：
-   - 🏥 宠物医疗咨询：“狗狗呕吐怎么办？”
-   - 🌤️ 天气查询：“北京明天天气如何？”
-   - 🔍 联网搜索：“最新的宠物疫苗技术有哪些？”
-5. **流式输出**：AI 回答会逐词显示，提升交互体验
+1. **新建会话**：点击左侧边栏"新对话"按钮
+2. **切换会话**：在历史对话列表中选择不同会话
+3. **清空对话**：点击"清空"按钮清除当前会话消息
+4. **删除会话**：点击会话旁边的 ❌ 按钮删除整个会话
+5. **输入问题**：在底部输入框提问，支持以下类型：
+   - 🏥 宠物医疗咨询："狗狗呕吐怎么办？"
+   - 🌤️ 天气查询："北京明天天气如何？"
+   - 🔍 联网搜索："最新的宠物疫苗技术有哪些？"
+6. **流式输出**：AI 回答会逐词显示，提升交互体验
+
+### 知识库管理页面
+
+访问方式：在 Streamlit 多页面应用中切换到"知识库管理"页面。
+
+功能：
+- 📤 上传文档：支持 PDF/TXT 格式
+- 📋 查看已加载文档列表
+- 🗑️ 删除指定文档
+- 🔄 重新加载知识库
+- 📊 统计信息展示
+
+### 向量库浏览页面
+
+访问方式：在 Streamlit 多页面应用中切换到"向量库浏览"页面。
+
+功能：
+- 🔍 搜索向量：输入关键词查询相似文档
+- 📄 查看文档内容片段
+- 📈 相似度评分展示
 
 ### 会话持久化
 
@@ -178,14 +254,26 @@
 | `config/prompt.yml` | 系统提示词与场景 Prompt | `main_prompt`, `rag_summarize_prompt`, `report_prompt_1` |
 | 系统环境变量 | API Key | `SERPAPI_API_KEY`, `mode_key` |
 
+### 模型配置（`rag.yml`）
+
+```yaml
+chatmodel_name: deepseek-v4-pro       # 对话模型名称
+embeddingmodel_name: text-embedding-v1 # 嵌入模型名称
+base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+```
+
 ### 向量数据库配置（`chroma.yml`）
 
 ```yaml
-collection_name: chowdb            # 集合名称
-chunk_size: 200                    # 文本切分大小
-chunk_overlap: 20                  # 切分重叠
-k: 2                               # 检索返回最相似文档数
-allow_type: [".pdf", ".txt"]       # 支持文件类型
+collection_name: chowdb               # 集合名称
+knowledge_dir: knowledge              # 向量库持久化目录
+knowledge_doc: doc                    # 源文档目录
+
+chunk_size: 200                       # 文本切分大小
+chunk_overlap: 40                     # 切分重叠
+separators: ["###\n", "\n\n", "\n", "。", "！", "？", "；", "，", ". ", " ", ""]
+k: 2                                  # 检索返回最相似文档数
+allow_type: [".pdf", ".txt"]          # 支持文件类型
 ```
 
 ### 系统提示词（`prompt.yml`）
@@ -199,18 +287,21 @@ allow_type: [".pdf", ".txt"]       # 支持文件类型
 ## 📁 项目结构
 
 ```
-agent_for_dog/
-├── main.py                  # Streamlit UI 入口
+pet-medical-assistant/
+├── 主界面.py                # Streamlit 主界面入口（聊天对话）
 ├── session_manager.py       # 多会话管理 & 持久化
+├── pages/                   # Streamlit 多页面目录
+│   ├── 知识库管理.py         # 知识库上传、管理页面
+│   └── 向量库浏览.py         # 向量库检索、浏览页面
 ├── agent/                   # 智能体核心
 │   ├── RecAgent.py          # 主 Agent 类（LangGraph create_agent）
 │   └── tools/
 │       ├── agent_tools.py   # 三大工具函数：rag_summarize / get_weather / rag_webserch
-│       ├── middleware.py     # 中间件：工具调用监控 & 前置日志
+│       ├── middleware.py    # 中间件：工具调用监控 & 前置日志
 │       └── webserch.py      # 备用 Web 搜索（Bocha.cn，当前未接入）
 ├── model/                   # 模型工厂
 │   ├── __init__.py          # 导出 chat_model / embedding_model / summ_model
-│   └── model_factory.py     # BaseModelFactory / ChatModelIni / EmbeddingModeIni
+│   └ model_factory.py       # BaseModelFactory / ChatModelIni / EmbeddingModeIni
 ├── rag/                     # RAG 检索增强生成
 │   ├── ChromaService.py     # Chroma 向量数据库初始化 & 文档加载（含 MD5 去重）
 │   ├── RagService.py        # RAG 检索 + 生成链
@@ -222,46 +313,65 @@ agent_for_dog/
 │   ├── path_tool.py         # 项目根目录 & 绝对路径解析
 │   └── prompt_tool.py       # Prompt 管理（占位）
 ├── config/                  # YAML 配置文件
-│   ├── rag.yml              # LLM 模型配置（model / base_url / api_key）
+│   ├── rag.yml              # LLM 模型配置（model / base_url）
 │   ├── chroma.yml           # Chroma 配置（collection / chunk / k 值）
 │   └── prompt.yml           # 系统提示词 & 各场景 Prompt 模板
 ├── doc/                     # 本地知识库文档（宠物医疗 PDF/TXT 源文件）
 ├── knowledge/               # Chroma 向量数据库持久化目录
 ├── history/                 # 会话历史 JSON 持久化目录
 ├── log/                     # 日志文件目录
+├── requirements.txt         # 完整 Python 依赖清单
+├── pyproject.toml           # 项目配置（PEP 517）
+├── Dockerfile               # Docker 构建镜像
+├── docker-compose.yml       # Docker Compose 配置
+├── start.bat                # Windows 一键启动脚本
+├── start.sh                 # Linux/Mac 一键启动脚本
+├── .gitignore               # Git 忽略文件配置
 └── README.md                # 本文件
 ```
 
 ### 核心模块详解
 
-#### 1. `main.py` — Streamlit UI 入口
+#### 1. `主界面.py` — Streamlit 主界面
 - 多会话聊天界面
 - `init_session_state()`：初始化会话状态与单例
 - `render_sidebar()`：渲染侧边栏（会话管理）
 - `render_chat()`：渲染聊天主体与流式输出
 - `save_message()`：消息持久化到 JSON
 
-#### 2. `session_manager.py` — 多会话管理
+#### 2. `pages/知识库管理.py` — 知识库管理页面
+- 文档上传（PDF/TXT）
+- 已加载文档列表查看
+- 单文档删除
+- 知识库重新加载
+- 统计信息展示
+
+#### 3. `pages/向量库浏览.py` — 向量库浏览页面
+- 关键词检索向量库
+- 相似文档内容预览
+- 相似度评分展示
+
+#### 4. `session_manager.py` — 多会话管理
 - `Session`：会话数据类（ID、标题、消息列表）
 - `SessionManager`：会话 CRUD、持久化加载、历史格式转换
 
-#### 3. `agent/RecAgent.py` — 核心 Agent 类
+#### 5. `agent/RecAgent.py` — 核心 Agent 类
 - 封装 LangGraph `create_agent()`
 - `exe_stream()`：流式执行，逐 token 输出
 - 注册三大工具 + 两个中间件
 
-#### 4. `agent/tools/agent_tools.py` — 工具集
+#### 6. `agent/tools/agent_tools.py` — 工具集
 - `@tool` 装饰器注册的三大工具：
   1. `rag_summarize(query)`：RAG 检索本地知识库
   2. `get_weather(location, date)`：天气查询（Open-Meteo）
   3. `rag_webserch(querys)`：Web 搜索（SerpAPI + requests/lxml）
 
-#### 5. `rag/ChromaService.py` — 向量数据库服务
+#### 7. `rag/ChromaService.py` — 向量数据库服务
 - Chroma 初始化与持久化
 - MD5 去重文档加载
 - `get_retriever()`：返回 top-2 相似文档检索器
 
-#### 6. `rag/RagService.py` — RAG 检索生成链
+#### 8. `rag/RagService.py` — RAG 检索生成链
 - 完整 RAG 流水线：检索 → 增强 → 生成
 - `rag_summarize(query, web_content="")`：结合本地文档与 Web 内容生成回答
 
@@ -292,7 +402,7 @@ agent_for_dog/
 ### 自定义知识库
 
 - 支持 PDF/TXT 文档
-- 放入 `doc/` 目录，执行 `chroma_ini.load_document()`
+- 放入 `doc/` 目录，通过知识库管理页面或代码加载
 - 修改 `config/chroma.yml` 中的 `chunk_size`、`chunk_overlap` 优化检索效果
 
 ### 日志与监控
@@ -307,9 +417,11 @@ agent_for_dog/
 
 - [x] **Web 搜索超时** — ✅ 已修复，移除 Jina Reader，改用 requests + lxml 直连
 - [x] **API Key 硬编码** — ✅ 已迁移到系统环境变量
+- [x] **缺少 requirements.txt** — ✅ 已补充完整依赖清单
+- [x] **缺少 Docker 支持** — ✅ 已添加 Dockerfile 与 docker-compose.yml
+- [x] **缺少一键启动脚本** — ✅ 已添加 start.bat / start.sh
+- [x] **缺少 .gitignore** — ✅ 已添加完整的忽略规则
 - [ ] **Streamlit 流式输出卡顿** — 某些场景下流式输出可能卡顿，待优化
-- [ ] **doc/ 目录缺失** — 首次运行需手动创建 `doc/` 目录
-- [ ] **缺少 requirements.txt** — 需补充完整依赖清单
 - [ ] **错误处理增强** — 部分 API 调用错误处理可更完善
 
 ---
@@ -332,13 +444,14 @@ agent_for_dog/
 
 ## 📄 许可证
 
-本项目暂未指定许可证，建议添加 MIT 许可证。
+本项目采用 MIT 许可证，详见 [LICENSE](LICENSE) 文件。
 
 ---
 
 ## 🙏 致谢
 
 - [LangGraph](https://langchain-ai.github.io/langgraph/)：强大的 Agent 框架
+- [LangChain](https://www.langchain.com/)：LLM 应用开发框架
 - [DashScope](https://dashscope.aliyuncs.com/)：阿里云模型服务平台
 - [Chroma](https://www.trychroma.com/)：轻量级向量数据库
 - [Streamlit](https://streamlit.io/)：快速构建数据应用
