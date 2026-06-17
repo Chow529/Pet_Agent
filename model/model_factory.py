@@ -17,7 +17,7 @@ class ChatModelIni(BaseModelFactory) :
         return ChatOpenAI(model = rag_config['chatmodel_name'],
                           base_url=rag_config['base_url'],
                         #   api_key=rag_config['mode_key'])
-                          api_key = os.getenv('mode_key'))
+                          api_key = os.getenv('OPENAI_API_KEY') ) # type: ignore
     
 
 class EmbeddingModeIni(BaseModelFactory):
@@ -25,7 +25,7 @@ class EmbeddingModeIni(BaseModelFactory):
         return OpenAIEmbeddings(
                 model= rag_config['embeddingmodel_name'],
                 # api_key=rag_config['mode_key'],
-                api_key = os.getenv('mode_key'),
+                api_key = os.getenv('OPENAI_API_KEY') , # type: ignore
                 base_url=rag_config["base_url"],
                 check_embedding_ctx_length=False
             )

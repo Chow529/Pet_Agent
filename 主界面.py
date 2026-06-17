@@ -13,6 +13,9 @@ sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 
 from session_manager import SessionManager
 from agent.RecAgent import RecAgent
+from rag.ChromaService import chroma_ini
+
+
 
 # 页面配置
 st.set_page_config(
@@ -70,6 +73,22 @@ st.markdown("""
     button[key="new_chat"]:hover {
         background-color: #45a049;
     }
+    
+    .upload-container {
+        border: 2px dashed #4CAF50;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+    }
+            
+    .upload-container:hover {
+        background-color: #f0f8f0;
+    }
+            
+    /* 隐藏自动生成的导航 */
+    .st-emotion-cache-1y4p8pa {
+        display: none !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -81,6 +100,7 @@ def init_session_state():
         st.session_state.session_manager = SessionManager()
         st.session_state.agent = RecAgent()
         st.session_state.current_messages = []
+        st.session_state.chroma = chroma_ini
 
 
 def get_session_manager() -> SessionManager:
@@ -114,10 +134,14 @@ def render_sidebar():
     
     with st.sidebar:
         st.title("🐾 宠物助手")
+
+        # st.page_link("main.py", label="🏠 主界面", icon="🏠")
+        # st.page_link("pages/knowledge_manager.py", label="📚 管理知识库", icon="📚")
+
         st.markdown("---")
         
         # 新对话按钮
-        col1, col2 = st.columns([3, 1])
+        col1, col2  = st.columns([3, 1])
         with col1:
             if st.button("➕ 新对话", key="new_chat", use_container_width=True):
                 new_session = session_manager.create_session()
@@ -128,6 +152,7 @@ def render_sidebar():
                 session_manager.clear_current_messages()
                 st.rerun()
         
+
         st.markdown("---")
         st.subheader("📋 历史对话")
         
@@ -166,6 +191,8 @@ def render_sidebar():
         total_messages = sum(len(s.messages) for s in sessions)
         st.caption(f"📊 总计: {len(sessions)} 个对话 | {total_messages} 条消息")
 
+
+        
 
 def render_chat():
     """渲染聊天区域"""
@@ -228,8 +255,9 @@ def render_chat():
         st.rerun()
 
 
+
+
 def main():
-    """主函数"""
     init_session_state()
     render_sidebar()
     render_chat()

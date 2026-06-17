@@ -158,6 +158,7 @@ def rag_webserch(querys:str) ->str:
 
     # 从环境变量读取 SerpAPI Key
     api_key = os.getenv("SERPAPI_API_KEY")
+    print(api_key)
     if not api_key:
         return "未配置 SERPAPI_API_KEY 环境变量，请在 .env 文件中设置"
     
@@ -270,10 +271,10 @@ def fetch_with_jina(url: str, max_chars: int = 2000) -> str:
         return clean_text.strip()
         
     except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 403:
+        if e.response.status_code == 403: # type: ignore
             logger.warning(f"网站拒绝访问 [{url}]: 可能需要添加Cookie")
             return f"[该网站需要验证，无法获取内容: {url}]"
-        elif e.response.status_code == 429:
+        elif e.response.status_code == 429: # type: ignore
             logger.warning(f"请求频率过高 [{url}]")
             return f"[请求过于频繁，请稍后再试: {url}]"
         else:
@@ -289,5 +290,5 @@ def clean_jina_content(content: str) -> str:
 
 
 
-if __name__ == "__main__" :
-    print(rag_webserch("宠物,医疗,呕吐"))
+# if __name__ == "__main__" :
+#     print(rag_webserch("宠物,医疗,呕吐"))
